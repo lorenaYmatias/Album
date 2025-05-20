@@ -219,7 +219,7 @@
 
   // Archivos de 1 a 186
   const gallery = document.getElementById("gallery");
-  const extensions = ['jpg', 'webp', 'png']; // extensiones para imágenes
+  const extensions = ['jpg', 'jpeg', 'webp', 'png']; // extensiones para imágenes
   const total = 186;
 
   // Videos específicos con sus configuraciones
@@ -228,102 +228,119 @@
     69: { autoplay: true },
     94: { autoplay: true },
     119: { autoplay: false },
-    121: { autoplay: false } // Este tampoco se autoplay como solicitaste
+    121: { autoplay: false }
   };
 
-  // Función para cargar imágenes
-  function loadImage(card, mediaContainer, i) {
-    let imgLoaded = false;
+  // Base URL para los archivos multimedia
+  const baseUrl = 'https://raw.githubusercontent.com/lorenaYmatias/Album/gh-pages/img/';
 
+  // Función para cargar imágenes con múltiples intentos
+  async function loadImage(mediaContainer, i) {
+    let imgLoaded = false;
+    
     // Intentar con cada extensión
     for (const ext of extensions) {
       const img = new Image();
-      img.src = 'https://lorenaymatias.github.io/Album/img/${i}.${ext}';
-
-      img.onload = function() {
-        if (imgLoaded) return;
-        imgLoaded = true;
-
-        // Determinar si la imagen es vertical
-        const isVertical = this.naturalHeight / this.naturalWidth > 1.2;
-
-        if (isVertical) {
-          img.style.height = "100%";
-          img.style.width = "auto";
-        } else {
-          img.style.width = "100%";
-          img.style.height = "auto";
-        }
-
-        mediaContainer.innerHTML = '';
-        mediaContainer.appendChild(img);
-      };
-
-      img.onerror = function() {
+      img.src = `${baseUrl}${i}.${ext}`;
+      
+      try {
+        await new Promise((resolve, reject) => {
+          img.onload = () => {
+            if (imgLoaded) return;
+            imgLoaded = true;
+            
+            // Determinar si la imagen es vertical
+            const isVertical = img.naturalHeight / img.naturalWidth > 1.2;
+            
+            if (isVertical) {
+              img.style.height = "100%";
+              img.style.width = "auto";
+            } else {
+              img.style.width = "100%";
+              img.style.height = "auto";
+            }
+            
+            mediaContainer.innerHTML = '';
+            mediaContainer.appendChild(img);
+            resolve();
+          };
+          
+          img.onerror = () => {
+            reject(new Error(`No se pudo cargar ${i}.${ext}`));
+          };
+        });
+        return; // Si se cargó exitosamente, salir del bucle
+      } catch (error) {
+        console.log(error.message);
         // Continuar con la siguiente extensión
-      };
-    }
-
-    // Si ninguna imagen carga después de un tiempo, mostrar mensaje
-    setTimeout(() => {
-      if (!imgLoaded && !videos[i]) {
-        mediaContainer.innerHTML = '<p style="color:#ff4081; padding:20px;">Imagen no disponible</p>';
       }
-    }, 1000);
+    }
+    
+    // Si ninguna imagen cargó
+    if (!imgLoaded && !videos[i]) {
+      mediaContainer.innerHTML = '<p style="color:#ff4081; padding:20px;">Imagen no disponible</p>';
+    }
   }
 
-  for (let i = 1; i <= total; i++) {
-    const card = document.createElement("div");
-    card.className = "photo-card";
+  // Función para cargar videos
+  function loadVideo(mediaContainer, i) {
+    const video = document.createElement("video");
+    video.src = `${baseUrl}${i}.mp4`;
+    video.loop = true;
+    video.muted = true;
+    video.controls = true;
+    video.setAttribute("playsinline", true);
 
-    const mediaContainer = document.createElement("div");
-    mediaContainer.className = "media-container";
-
-    const caption = document.createElement("div");
-    caption.className = "caption";
-    caption.textContent = `Recuerdo especial #${i}`;
-
-    // Verificar si es un video
-    if (videos[i]) {
-      const video = document.createElement("video");
-      video.src = 'https://lorenaymatias.github.io/Album/img/${i}.mp4';
-      video.loop = true;
-      video.muted = true;
-      video.controls = true;
-      video.setAttribute("playsinline", true);
-
-      // Configurar autoplay según especificación
-      if (videos[i].autoplay) {
-        video.autoplay = true;
-      }
-
-      // Añadir icono de video
-      const videoIcon = document.createElement("div");
-      videoIcon.className = "video-icon";
-      videoIcon.innerHTML = "▶";
-      mediaContainer.appendChild(videoIcon);
-
-      // Control de sonido al hacer clic
-      video.addEventListener("click", (e) => {
-        e.stopPropagation();
-        video.muted = !video.muted;
-      });
-
-      // Manejar errores
-      video.addEventListener('error', function() {
-        mediaContainer.innerHTML = '<p style="color:#ff4081; padding:20px;">Video no disponible</p>';
-      });
-
-      mediaContainer.appendChild(video);
-    } else {
-      // Es una imagen - cargarla
-      loadImage(card, mediaContainer, i);
+    if (videos[i].autoplay) {
+      video.autoplay = true;
     }
 
-    card.appendChild(mediaContainer);
-    card.appendChild(caption);
-    gallery.appendChild(card);
+    const videoIcon = document.createElement("div");
+    videoIcon.className = "video-icon";
+    videoIcon.innerHTML = "▶";
+    mediaContainer.appendChild(videoIcon);
+
+    video.addEventListener("click", (e) => {
+      e.stopPropagation();
+      video.muted = !video.muted;
+    });
+
+    video.addEventListener('error', function() {
+      mediaContainer.innerHTML = '<p style="color:#ff4081; padding:20px;">Video no disponible</p>';
+    });
+
+    mediaContainer.appendChild(video);
   }
+
+  // Crear las tarjetas
+  async function createCards() {
+    for (let i = 1; i <= total; i++) {
+      const card = document.createElement("div");
+      card.className = "photo-card";
+
+      const mediaContainer = document.createElement("div");
+      mediaContainer.className = "media-container";
+
+      const caption = document.createElement("div");
+      caption.className = "caption";
+      caption.textContent = `Recuerdo especial #${i}`;
+
+      // Verificar si es un video
+      if (videos[i]) {
+        loadVideo(mediaContainer, i);
+      } else {
+        // Es una imagen - cargarla
+        await loadImage(mediaContainer, i);
+      }
+
+      card.appendChild(mediaContainer);
+      card.appendChild(caption);
+      gallery.appendChild(card);
+    }
+  }
+
+  // Iniciar la creación de tarjetas
+  createCards();
 </script>
 </body>
 </html>
