@@ -238,7 +238,7 @@
     // Intentar con cada extensión
     for (const ext of extensions) {
       const img = new Image();
-      img.src = '/img/${i}.${ext}';
+      img.src = './${i}.${ext}';
 
       img.onload = function() {
         if (imgLoaded) return;
@@ -286,7 +286,7 @@
     // Verificar si es un video
     if (videos[i]) {
       const video = document.createElement("video");
-      video.src = '/img/${i}.mp4';
+      video.src = './${i}.mp4';
       video.loop = true;
       video.muted = true;
       video.controls = true;
